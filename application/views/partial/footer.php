@@ -43,6 +43,7 @@ if (($this->uri->segment(1) == 'sales' || $this->uri->segment(1) == 'receivings'
 ?>
 
 <?php if ($this->uri->segment(1) == 'sales') { ?>
+	<?php $this->load->view('sales/sale_workspaces_footer'); ?>
 	<script src="<?php echo base_url(); ?>assets/js/textile_quantity_calculator.js?<?php echo BUILD_TIMESTAMP; ?>"></script>
 <?php } ?>
 
@@ -105,7 +106,6 @@ if ($this->config->item('offline_mode'))
 	$offline_assets[] = base_url().'assets/assets/images/avatar-default.jpg';
 	$offline_assets[] = base_url().'assets/img/item.png';
 	$offline_assets[] = base_url().$this->config->item('branding')['logo_path'];
-	$offline_assets[] = base_url().'assets/img/user.png';
 
 	?>
 
