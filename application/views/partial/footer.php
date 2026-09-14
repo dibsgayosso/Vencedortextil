@@ -106,6 +106,7 @@ if ($this->config->item('offline_mode'))
 	$offline_assets[] = base_url().'assets/assets/images/avatar-default.jpg';
 	$offline_assets[] = base_url().'assets/img/item.png';
 	$offline_assets[] = base_url().$this->config->item('branding')['logo_path'];
+	$offline_assets[] = base_url().'assets/img/user.png';
 
 	?>
 
