@@ -42,6 +42,10 @@ if (($this->uri->segment(1) == 'sales' || $this->uri->segment(1) == 'receivings'
 }
 ?>
 
+<?php if ($this->uri->segment(1) == 'sales') { ?>
+	<script src="<?php echo base_url(); ?>assets/js/textile_quantity_calculator.js?<?php echo BUILD_TIMESTAMP; ?>"></script>
+<?php } ?>
+
 <script>
 	async function delete_all_client_side_dbs()
 	{
@@ -123,7 +127,6 @@ if ($this->config->item('offline_mode'))
 			if (typeof(w) == "undefined") {
 				w = new Worker('<?php echo base_url(); ?>'+"assets/js/load_sales_offline_data_worker.js?<?php echo BUILD_TIMESTAMP;?>");
 					
-				//Event handler coming back from worker that posts messages
 				w.onmessage = function(event) 
 				{
 					var data = event.data;
@@ -134,7 +137,6 @@ if ($this->config->item('offline_mode'))
 					}
 				};
 
-				//Post message to worker; some init params
 				w.postMessage({
 					base_url:BASE_URL,
 					site_url:SITE_URL,
