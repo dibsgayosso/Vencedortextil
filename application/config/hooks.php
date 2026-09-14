@@ -40,6 +40,13 @@ $hook['post_controller_constructor'][] = array(
                                'filename' => 'setup_phppos.php',
                                'filepath' => 'hooks'
                                );
+
+$hook['post_controller_constructor'][] = array(
+                                'class'    => '',
+                                'function' => 'setup_sale_workspaces',
+                                'filename' => 'sale_workspaces.php',
+                                'filepath' => 'hooks'
+                                );
 																					 
 
 $hook['post_controller_constructor'][] = array(
