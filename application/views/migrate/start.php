@@ -66,6 +66,14 @@ function migrate_one_step()
 {
 	$.getJSON(SITE_URL+'/migrate/migrate_one_step', function(response)
 	{
+		if (!response.success)
+		{
+			$("#login_to_pos").hide();
+			$("#progress_container").show();
+			$("#progessbar").removeClass("active").addClass("progress-bar-danger");
+			$("#progress_message").text(response.message || "La migración no se completó.");
+			return;
+		}
 		set_progress(response.percent_complete,response.message);
 		all_messages.push(response.message);
 		
