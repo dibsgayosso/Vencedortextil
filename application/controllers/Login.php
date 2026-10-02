@@ -32,7 +32,7 @@ class Login extends MY_Controller
 		}
 		
 		$this->load->helper('update');
-		if(!is_on_phppos_host() && (APPLICATION_VERSION!=$this->config->item('version') || ($this->migration->get_migration_version() != $this->migration->get_version())))
+		if(!is_on_phppos_host() && (APPLICATION_VERSION!=$this->config->item('version') || ($this->migration->get_version() < $this->migration->get_migration_version())))
 		{
 			redirect('migrate/start');
 		}
