@@ -87,34 +87,30 @@ class Migrate extends MY_Controller {
 			$number_of_migrations_completed = $this->_get_total_number_of_migrations_ran();
 			
 			$migration_to_run = false;
-			if ($cur_migration_version)
+			// Apply only pending upgrades, even when the recorded version is not a local file.
+			foreach ($migrations as $migration_key => $value)
 			{
-				foreach($migrations as $migration_key => $value)
-				{				
-					//We found in last step; now the next one is it!
-					if (isset($found) && $found)
-					{
-						$migration_to_run = $value;
-						break;	
-					}
-					if ($migration_key == $cur_migration_version)
-					{
-						$found = TRUE;
-					}
+				if ($migration_key > $cur_migration_version &&
+					$migration_key <= $this->migration->get_migration_version())
+				{
+					$migration_to_run = $value;
+					break;
 				}
 			}
-			else
-			{
-				$migration_to_run = array_shift($migrations);
-			}
+
 		
 			if ($migration_to_run)
 			{
 				$name = basename($migration_to_run, '.php');
 				$version = $this->migration->get_migration_number($name);
 				$message = lang('migrate_'.substr($name,strpos($name,'_')+1));
-				$percent_complete = floor(($number_of_migrations_completed/$total_migrations)*100);
-				$this->migration->version($version);
+				$percent_complete = floor(($number_of_migrations_completed/max(1, $total_migrations))*100);
+				if ($this->migration->version($version) === FALSE)
+				{
+					echo json_encode(array('success' => FALSE, 'has_next_step' => FALSE,
+						'percent_complete' => $percent_complete, 'message' => $this->migration->error_string()));
+					return;
+				}
 				$this->_migrations_ran();
 				$has_next_step = TRUE;
 			}
