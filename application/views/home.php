@@ -550,6 +550,29 @@ if (!is_on_demo_host() && !$this->config->item('hide_test_mode_home') && !$this-
 </div>
 
 <?php if ($this->Employee->has_module_action_permission('reports', 'view_dashboard_stats', $this->Employee->get_logged_in_employee_info()->person_id)) { ?>
+<div class="row"><div class="col-md-12">
+<div class="panel panel-piluku">
+<div class="panel-heading"><h4>Pagos de hoy · <?php echo html_escape($current_location_name); ?></h4></div>
+<div class="panel-body">
+<div class="table-responsive">
+<table class="table table-striped">
+<thead><tr><th scope="col">Método de pago</th><th scope="col" class="text-right">Operaciones</th><th scope="col" class="text-right">Importe acumulado</th></tr></thead>
+<tbody>
+<?php foreach ($payment_breakdown['rows'] as $payment) { ?>
+<tr><th scope="row"><?php echo html_escape($payment['label']); ?></th><td class="text-right"><?php echo (int)$payment['operations']; ?></td><td class="text-right"><?php echo to_currency($payment['total']); ?></td></tr>
+<?php } ?>
+</tbody></table>
+</div>
+<div class="well" style="margin-bottom:10px;">
+<strong>Total de operaciones por método: <?php echo (int)$payment_breakdown['operations']; ?></strong><br>
+Total de pagos: <?php echo to_currency($payment_breakdown['total']); ?><br>
+Ventas únicas de hoy: <?php echo (int)$payment_breakdown['sales_count']; ?><br>
+<strong>Ventas acumuladas de hoy: <?php echo to_currency($payment_breakdown['sales_total']); ?></strong>
+</div>
+<p class="text-muted">Una venta combinada cuenta en cada método utilizado y una sola vez en ventas únicas. Incluye devoluciones; excluye ventas eliminadas y suspendidas.</p>
+</div></div>
+
+</div></div>
 <div class="row ">
 		<div class="col-md-12">
 			<div class="panel">

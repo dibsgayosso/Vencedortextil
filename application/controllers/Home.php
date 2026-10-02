@@ -30,6 +30,85 @@ class Home extends Secure_area
 		$this->load->view("payvantage");
 		
 	}
+        private function get_today_payment_breakdown($location_id)
+        {
+            $start = date('Y-m-d 00:00:00');
+            $end = date('Y-m-d 00:00:00', strtotime('+1 day'));
+            $this->db->select('sale_id, total');
+            $this->db->from('sales');
+            $this->db->where('location_id', $location_id);
+            $this->db->where('sale_time >=', $start);
+            $this->db->where('sale_time <', $end);
+            $this->db->where('deleted', 0);
+            $this->db->where('suspended', 0);
+            $sales = $this->db->get()->result_array();
+            $sales_totals = array();
+            $sales_total = 0;
+            foreach ($sales as $sale)
+            {
+                $sales_totals[$sale['sale_id']] = $sale['total'];
+                $sales_total += $sale['total'];
+            }
+            $summary = array();
+            // Use the same configured options as a new sale, without reading the active cart.
+            $payment_options = $this->Sale->get_payment_options(new PHPPOSCartSale());
+            foreach ($payment_options as $label)
+            {
+                $summary[$label] = array('label' => $label, 'operations' => 0, 'total' => 0);
+            }
+            $payment_operations = 0;
+            $payment_total = 0;
+            if ($sales_totals)
+            {
+                $payments = $this->Sale->_get_all_sale_payments(array_keys($sales_totals), TRUE);
+                // Reuse the reports' allocation of change and combined payments.
+                $payments = $this->Sale->get_payment_data_grouped_by_sale($payments, $sales_totals);
+                foreach ($payments as $sale_payments)
+                {
+                    $seen = array();
+                    foreach ($sale_payments as $payment)
+                    {
+                        if ((float)$payment['payment_amount'] == 0) continue;
+                        $label = $payment['payment_type'];
+                        // Custom names must remain exact, including colons and capitalization.
+                        if (!isset($summary[$label]))
+                        {
+                            $language_options = $this->Sale->get_payment_options_with_language_keys();
+                            foreach ($language_options as $name => $language_key)
+                            {
+                                if (strpos($language_key, 'common_') === 0 && $label === $language_key)
+                                {
+                                    $label = $name;
+                                    break;
+                                }
+                            }
+                            // Gift-card numbers identify the payment, not a separate method.
+                            foreach (array(lang('common_giftcard'), lang('common_integrated_gift_card')) as $giftcard_type)
+                            {
+                                if ($giftcard_type && strpos($label, $giftcard_type.':') === 0)
+                                {
+                                    $label = $giftcard_type;
+                                    break;
+                                }
+                            }
+                        }
+                        if (!isset($summary[$label]))
+                            $summary[$label] = array('label' => $label, 'operations' => 0, 'total' => 0);
+                        $summary[$label]['total'] += $payment['payment_amount'];
+                        $payment_total += $payment['payment_amount'];
+                        if (!isset($seen[$label]))
+                        {
+                            $summary[$label]['operations']++;
+                            $payment_operations++;
+                            $seen[$label] = TRUE;
+                        }
+                    }
+                }
+            }
+            return array('rows' => array_values($summary), 'operations' => $payment_operations,
+                'total' => $payment_total, 'sales_count' => count($sales), 'sales_total' => $sales_total);
+        }
+
 	function index($choose_location=0)
 	{		
 		require_once (APPPATH.'models/reports/Report.php');
@@ -54,10 +133,12 @@ class Home extends Secure_area
 		
 		$current_location = $this->Location->get_info($this->Employee->get_logged_in_employee_current_location_id());
 		$current_location_id = $this->Employee->get_logged_in_employee_current_location_id();
+		$data['current_location_name'] = $current_location->name;
 		$data['message']  = "";
 		
 		if ($this->Employee->has_module_action_permission('reports', 'view_dashboard_stats', $this->Employee->get_logged_in_employee_info()->person_id))
 		{	
+			$data['payment_breakdown'] = $this->get_today_payment_breakdown($current_location_id);
 			$data['month_sale'] = $this->sales_widget();
 		}
 		$this->load->helper('demo');
