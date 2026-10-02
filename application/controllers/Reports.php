@@ -22,6 +22,60 @@ class Reports extends Secure_area
 		$this->lang->load('module');
 		$this->load->model('Sale');
 	}
+
+    public function cancelled_sales()
+    {
+        $this->check_action_permission('view_deleted_sales');
+        $today = date('Y-m-d');
+        $start_date = $this->input->get('start_date');
+        $end_date = $this->input->get('end_date');
+        $can_change_date = $this->Employee->has_module_action_permission('reports',
+            'can_change_report_date', $this->Employee->get_logged_in_employee_info()->person_id);
+        if (!$can_change_date || !$start_date) $start_date = $today;
+        if (!$can_change_date || !$end_date) $end_date = $today;
+        foreach (array($start_date, $end_date) as $value)
+        {
+            if (!is_string($value) || !preg_match('/^\\d{4}-\\d{2}-\\d{2}$/', $value))
+            {
+                show_error('Elige fechas válidas para el reporte.', 400);
+                return;
+            }
+            $date = DateTime::createFromFormat('!Y-m-d', $value);
+            if (!$date || $date->format('Y-m-d') !== $value)
+            {
+                show_error('Elige fechas válidas para el reporte.', 400);
+                return;
+            }
+        }
+        if ($start_date > $end_date)
+        {
+            show_error('La fecha inicial debe ser anterior o igual a la final.', 400);
+            return;
+        }
+        $page = $this->input->get('page');
+        $page = is_string($page) && ctype_digit($page) ? max(1, min(1000000, (int)$page)) : 1;
+        $location_id = $this->Employee->get_logged_in_employee_current_location_id();
+        $this->load->model('Cancelled_sale');
+        $data = array('start_date' => $start_date, 'end_date' => $end_date, 'page' => $page,
+            'can_change_date' => $can_change_date,
+            'location_name' => $this->Location->get_info($location_id)->name,
+            'rows' => array(), 'summary' => array('operations' => 0, 'total' => 0), 'audit_error' => '');
+        if (!$this->Cancelled_sale->is_ready())
+        {
+            $data['audit_error'] = 'Falta ejecutar la actualización de la tabla de auditoría de cancelaciones.';
+        }
+        else
+        {
+            $end = new DateTime($end_date);
+            $end->modify('+1 day');
+            $audit = $this->Cancelled_sale->get_audit($location_id, $start_date.' 00:00:00',
+                $end->format('Y-m-d').' 00:00:00', ($page - 1) * 100);
+            $data['rows'] = $audit['rows'];
+            $data['summary'] = $audit['summary'];
+        }
+        $this->load->view('reports/cancelled_sales', $data);
+    }
+
 	/* function for save preferences */
 	function save_column_prefs_reports() {
 		$this->load->model('Employee_appconfig');

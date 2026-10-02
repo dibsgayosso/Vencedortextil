@@ -360,6 +360,7 @@
 				
 				
 				<div class="list-group deleted-sales hidden">
+                    <a href="<?php echo site_url('reports/cancelled_sales');?>" class="list-group-item"><i class="icon ti-receipt"></i> Cancelaciones de ventas en curso</a>
 					<a href="<?php echo site_url('reports/generate/deleted_sales');?>" class="list-group-item"><i class="icon ti-calendar"></i> <?php echo lang('reports_detailed_reports'); ?></a>
 					<?php
 					if ($this->Location->get_info_for_key('enable_credit_card_processing') && $this->Location->get_info_for_key('credit_card_processor') == 'coreclear2')

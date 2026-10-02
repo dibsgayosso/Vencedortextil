@@ -3555,35 +3555,92 @@ class Sales extends Secure_area
 
   function cancel_sale()
   {
-	 if ($this->Location->get_info_for_key('enable_credit_card_processing'))
-	 {
- 		$credit_card_processor = $this->_get_cc_processor();
-		 
-		 if ($credit_card_processor && method_exists($credit_card_processor, 'void_partial_transactions'))
-		 {
-			 if (!$credit_card_processor->void_partial_transactions())
-			 {
-		 	 	 $this->cart->destroy();
-				 $this->cart->save();
-				 $this->_reload(array('error' => lang('sales_attempted_to_reverse_transactions_failed_please_contact_support')), true);
-				 return;
-			 }
- 			 }
-	 }
-	 
-	 	$this->cart->destroy();
-		$this->cart->save();
-		$this->Sale->delete_open_suspended_sales();
-	 	$this->_reload();
-	}
-	
-	function clear_sale()
-	{
-   	$this->cart->destroy();
-		$this->cart->save();
-   	$this->_reload();
-	}
-	
+        if (strtoupper($this->input->method()) !== 'POST')
+        {
+            show_error('La cancelación debe enviarse desde el formulario de venta.', 405);
+            return;
+        }
+
+        // Cancel-edit leaves the stored receipt intact; audit only new, active tickets.
+        $audit_required = count($this->cart->get_items()) > 0 &&
+            !$this->cart->get_previous_receipt_id() && !$this->cart->suspended;
+        $reason = '';
+        if ($audit_required)
+        {
+            $raw_reason = $this->input->post('cancellation_reason');
+            $reason = is_string($raw_reason) ?
+                preg_replace('/[\\s\\p{Z}\\x{200B}\\x{FEFF}]+/u', ' ', $raw_reason) : '';
+            $reason = is_string($reason) ? trim($reason) : '';
+            if ($reason === '' || mb_strlen($reason, 'UTF-8') > 2000)
+            {
+                $this->_reload(array('error' => 'Escribe el motivo de la cancelación (máximo 2000 caracteres).'));
+                return;
+            }
+            $this->load->model('Cancelled_sale');
+            if (!$this->Cancelled_sale->is_ready())
+            {
+                $this->_reload(array('error' => 'No se puede cancelar: falta actualizar la tabla de auditoría de cancelaciones.'));
+                return;
+            }
+        }
+
+        if ($audit_required)
+        {
+            if (!$this->db->trans_begin())
+            {
+                $this->_reload(array('error' => 'No se pudo iniciar el registro de auditoría. La venta no se canceló.'));
+                return;
+            }
+            if (!$this->Cancelled_sale->record($this->cart, $reason))
+            {
+                $this->db->trans_rollback();
+                $this->_reload(array('error' => 'No se pudo guardar el motivo. La venta permanece en pantalla.'));
+                return;
+            }
+        }
+
+        if ($this->Location->get_info_for_key('enable_credit_card_processing'))
+        {
+            $credit_card_processor = $this->_get_cc_processor();
+            if ($credit_card_processor && method_exists($credit_card_processor, 'void_partial_transactions') &&
+                !$credit_card_processor->void_partial_transactions())
+            {
+                if ($audit_required) $this->db->trans_rollback();
+                // Keep the ticket when reversal fails; never report a successful cancellation.
+                $this->cart->save();
+                $this->_reload(array('error' => lang('sales_attempted_to_reverse_transactions_failed_please_contact_support')), true);
+                return;
+            }
+        }
+
+        if ($audit_required && (!$this->db->trans_status() || !$this->db->trans_commit()))
+        {
+            $this->db->trans_rollback();
+            $this->cart->save();
+            $this->_reload(array('error' => 'No se pudo confirmar el registro de auditoría. La venta permanece en pantalla; revisa el estado del pago antes de reintentar.'));
+            return;
+        }
+
+        $this->cart->destroy();
+        $this->cart->save();
+        $this->Sale->delete_open_suspended_sales();
+        $this->_reload();
+    }
+
+    function clear_sale()
+    {
+        // This endpoint must not bypass the reason and audit for an active ticket.
+        if (count($this->cart->get_items()) > 0 &&
+            !$this->cart->get_previous_receipt_id() && !$this->cart->suspended)
+        {
+            $this->cancel_sale();
+            return;
+        }
+        $this->cart->destroy();
+        $this->cart->save();
+        $this->_reload();
+    }
+
 	function suspend($suspend_type = 1)
 	{
 		if (!$this->Employee->has_module_action_permission('sales', 'suspend_sale', $this->Employee->get_logged_in_employee_info()->person_id))

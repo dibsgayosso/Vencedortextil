@@ -1197,6 +1197,7 @@ if ($this->session->userdata('use_manual_entry'))
 			</div>
 			<?php if (count($cart_items) > 0) { ?>
 				<?php echo form_open("sales/cancel_sale", array('id' => 'cancel_sale_form', 'autocomplete' => 'off')); ?>
+                <input type="hidden" name="cancellation_reason" id="cancellation_reason" value="">
 				<?php if ($mode != 'store_account_payment' && $mode != 'purchase_points') { ?>
 
 					<?php if ($this->Employee->has_module_action_permission('sales', 'suspend_sale', $this->Employee->get_logged_in_employee_info()->person_id) && $customer_required_check && $suspended_sale_customer_required_check && !$this->config->item('test_mode')) { ?>
@@ -3510,17 +3511,49 @@ if (isset($number_to_add) && isset($item_to_add)) {
 		});
 
 		//Cancel Sale
-		$("#cancel_sale_button").click(function(e) {
-			e.preventDefault();
-			bootbox.confirm(<?php echo json_encode(lang("sales_confirm_cancel_sale")); ?>, function(result) {
-				if (result) {
-					$('#cancel_sale_form').ajaxSubmit({
-						target: "#register_container",
-						beforeSubmit: salesBeforeSubmit
-					});
-				}
-			});
-		});
+        $("#cancel_sale_button").click(function(e) {
+            e.preventDefault();
+            var button = $(this);
+            if (button.data('cancelling')) return;
+
+            function submitCancellation(reason) {
+                $('#cancellation_reason').val(reason);
+                button.data('cancelling', true);
+                $('#cancel_sale_form').ajaxSubmit({
+                    target: "#register_container",
+                    beforeSubmit: salesBeforeSubmit,
+                    complete: function() { button.data('cancelling', false); }
+                });
+            }
+
+            <?php if ($this->cart->get_previous_receipt_id() || $this->cart->suspended) { ?>
+            bootbox.confirm(<?php echo json_encode(lang("sales_confirm_cancel_sale")); ?>, function(result) {
+                if (result) submitCancellation('');
+            });
+            <?php } else { ?>
+            var dialog = bootbox.dialog({
+                title: "Cancelar venta en curso",
+                message: '<div class="form-group"><label for="cancel_reason_text">Motivo de la cancelación (obligatorio)</label><textarea id="cancel_reason_text" class="form-control" rows="4" maxlength="2000" placeholder="Ejemplo: el cliente ya no quiso los productos"></textarea><p class="text-danger cancel-reason-error" role="alert" style="display:none;">Escribe el motivo para poder cancelar.</p></div>',
+                buttons: {
+                    back: { label: "Volver a la venta", className: "btn-default" },
+                    cancelSale: {
+                        label: "Registrar motivo y cancelar",
+                        className: "btn-danger",
+                        callback: function() {
+                            var reason = $.trim(dialog.find('#cancel_reason_text').val().replace(/[\s\u200B\uFEFF]+/g, ' '));
+                            if (!reason || reason.length > 2000) {
+                                dialog.find('.cancel-reason-error').show();
+                                dialog.find('#cancel_reason_text').focus();
+                                return false;
+                            }
+                            submitCancellation(reason);
+                        }
+                    }
+                }
+            });
+            dialog.on('shown.bs.modal', function() { dialog.find('#cancel_reason_text').focus(); });
+            <?php } ?>
+        });
 		//Select Payment
 		$('.select-payment').on('click mousedown', selectPayment);
 
