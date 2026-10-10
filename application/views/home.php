@@ -1,6 +1,24 @@
 <?php $this->load->view("partial/header"); 
 $this->load->helper('demo');
 ?>
+<?php if (!empty($can_view_supervisor_dashboard)) { ?>
+<div id="supervisor-panel"><?php $this->load->view('supervisor_panel'); ?></div>
+<script>
+(function(){
+ var busy=false;
+ setInterval(function(){
+  if(busy || document.hidden) return;
+  busy=true;
+  var state={}; jQuery('#supervisor-panel details[data-branch]').each(function(){state[this.getAttribute('data-branch')]=this.open;});
+  jQuery.get(<?php echo json_encode(site_url('home/supervisor_panel')); ?>).done(function(html){
+   jQuery('#supervisor-panel').html(html);
+   jQuery('#supervisor-panel details[data-branch]').each(function(){var id=this.getAttribute('data-branch');if(Object.prototype.hasOwnProperty.call(state,id))this.open=state[id];});
+  }).fail(function(){jQuery('#supervisor-panel .sv-live').text('No se pudo actualizar. Reintentando…');}).always(function(){busy=false;});
+ },30000);
+})();
+</script>
+<?php } ?>
+<?php if (!empty($can_view_supervisor_dashboard)) { $this->load->view('partial/footer'); return; } ?>
 
 		<?php
 		if(isset($announcement))
