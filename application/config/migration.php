@@ -69,7 +69,7 @@ $config['migration_auto_latest'] = FALSE;
 |
 */
 
-$config['migration_version'] = '20261010030000';
+$config['migration_version'] = '20261010031500';
 /*
 |--------------------------------------------------------------------------
 | Migrations Path

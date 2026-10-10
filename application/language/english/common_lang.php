@@ -1324,3 +1324,7 @@ $lang['common_item_unit_discount_percent'] = 'Item Unit Discount Percent';
 $lang['common_use_this_price'] = 'Use this Price';
 
 $lang['common_view_supervisor_dashboard']='View supervisor dashboard';
+
+$lang['common_view_owner_dashboard']='View owner dashboard';
+
+$lang['common_view_register_difference']='View register differences';

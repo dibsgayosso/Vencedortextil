@@ -1,6 +1,20 @@
 <?php $this->load->view("partial/header"); 
 $this->load->helper('demo');
 ?>
+<?php if (!empty($can_view_owner_dashboard)) { ?>
+<div id="owner-dashboard"><?php $this->load->view('owner_panel'); ?></div>
+<script>
+(function(){var busy=false;setInterval(function(){
+ if(busy||document.hidden)return;busy=true;
+ var opened=[];jQuery('#owner-dashboard details[open]').each(function(){opened.push(this.id);});
+ jQuery.get(<?php echo json_encode(site_url('home/owner_panel')); ?>).done(function(html){
+ jQuery('#owner-dashboard').html(html);opened.forEach(function(id){var node=document.getElementById(id);if(node)node.open=true;});
+ jQuery('#owner-dashboard-refresh').text('Actualizado '+new Date().toLocaleTimeString());
+ }).fail(function(){jQuery('#owner-dashboard-refresh').text('No se pudo actualizar. Reintentando…');}).always(function(){busy=false;});
+},30000);})();
+</script>
+<?php } ?>
+
 <?php if (!empty($can_view_supervisor_dashboard)) { ?>
 <div id="supervisor-panel"><?php $this->load->view('supervisor_panel'); ?></div>
 <script>
@@ -18,7 +32,7 @@ $this->load->helper('demo');
 })();
 </script>
 <?php } ?>
-<?php if (!empty($can_view_supervisor_dashboard)) { $this->load->view('partial/footer'); return; } ?>
+<?php if (!empty($can_view_supervisor_dashboard) || !empty($can_view_owner_dashboard)) { $this->load->view('partial/footer'); return; } ?>
 
 		<?php
 		if(isset($announcement))

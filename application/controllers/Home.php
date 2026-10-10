@@ -21,6 +21,7 @@ class Home extends Secure_area
 		$this->load->model('Employee');
 		$this->load->model('Giftcard');
 		$this->load->model('Sale');
+        $this->load->model('Register');
 		$this->load->helper('cloud');
 		$this->load->helper('text');
 		$this->load->model('Appfile');
@@ -30,7 +31,7 @@ class Home extends Secure_area
 		$this->load->view("payvantage");
 		
 	}
-        private function get_today_payment_breakdown($location_id)
+        private function get_today_payment_breakdown($location_id,$merchandise_only=FALSE)
         {
             $start = date('Y-m-d 00:00:00');
             $end = date('Y-m-d 00:00:00', strtotime('+1 day'));
@@ -41,6 +42,7 @@ class Home extends Secure_area
             $this->db->where('sale_time <', $end);
             $this->db->where('deleted', 0);
             $this->db->where('suspended', 0);
+            if ($merchandise_only) $this->db->where('store_account_payment',0);
             $sales = $this->db->get()->result_array();
             $sales_totals = array();
             $sales_total = 0;
@@ -108,6 +110,28 @@ class Home extends Secure_area
             return array('rows' => array_values($summary), 'operations' => $payment_operations,
                 'total' => $payment_total, 'sales_count' => count($sales), 'sales_total' => $sales_total);
         }
+
+    private function owner_data()
+    {
+        $this->load->model('Owner_dashboard');
+        $debug=$this->db->db_debug;
+        $this->db->db_debug=FALSE;
+        try {
+            return $this->Owner_dashboard->snapshot($this->session->userdata('person_id'),function($location) {
+                return $this->get_today_payment_breakdown($location,TRUE);
+            });
+        } catch (Throwable $error) {
+            log_message('error','Owner dashboard failed: '.$error->getMessage());
+            return array('error'=>TRUE);
+        } finally { $this->db->db_debug=$debug; }
+    }
+    public function owner_panel()
+    {
+        $this->load->model('Owner_dashboard');
+        if (!$this->Owner_dashboard->allowed_locations($this->session->userdata('person_id'))) { show_error('Sin permiso del panel de propietario',403); return; }
+        $this->output->set_header('Cache-Control: no-store');
+        $this->load->view('owner_panel',array('owner_dashboard'=>$this->owner_data()));
+    }
 
     private function supervisor_data()
     {
@@ -180,7 +204,10 @@ class Home extends Secure_area
 
 		$data['choose_location'] = $choose_location;
         $this->load->model('Supervisor_dashboard');
-        $data['can_view_supervisor_dashboard']=(bool)$this->Supervisor_dashboard->allowed_locations($this->session->userdata('person_id'));
+        $this->load->model('Owner_dashboard');
+        $data['can_view_owner_dashboard']=(bool)$this->Owner_dashboard->allowed_locations($this->session->userdata('person_id'));
+        if ($data['can_view_owner_dashboard']) $data['owner_dashboard']=$this->owner_data();
+        $data['can_view_supervisor_dashboard']=!$data['can_view_owner_dashboard'] && (bool)$this->Supervisor_dashboard->allowed_locations($this->session->userdata('person_id'));
         if ($data['can_view_supervisor_dashboard']) $data=array_merge($data,$this->supervisor_data());
 		
 		$data['total_items']=$this->Item->count_all();
@@ -201,7 +228,7 @@ class Home extends Secure_area
 		if ($this->Employee->has_module_action_permission('reports', 'view_dashboard_stats', $this->Employee->get_logged_in_employee_info()->person_id))
 		{	
 			$data['payment_breakdown'] = $this->get_today_payment_breakdown($current_location_id);
-			if (!$data['can_view_supervisor_dashboard']) $data['month_sale'] = $this->sales_widget();
+			if (!$data['can_view_supervisor_dashboard'] && !$data['can_view_owner_dashboard']) $data['month_sale'] = $this->sales_widget();
 		}
 		$this->load->helper('demo');
 		$data['can_show_mercury_activate'] = (!is_on_demo_host() && !$this->config->item('mercury_activate_seen')) && !$this->Location->get_info_for_key('enable_credit_card_processing') && $this->config->item('branding_code') == 'phppointofsale';		
