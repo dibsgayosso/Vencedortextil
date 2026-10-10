@@ -18,6 +18,7 @@
 	<script>
 	var SITE_URL= "<?php echo site_url(); ?>";
 	var BASE_URL= "<?php echo base_url(); ?>";
+	var MIGRATION_STEP_URL = <?php echo json_encode(site_url('migrate/migrate_one_step')); ?>;
 	</script>
 
   <script src="<?php echo base_url();?>assets/js/jquery.js?<?php echo ASSET_TIMESTAMP; ?>" type="text/javascript" language="javascript" charset="UTF-8"></script>
@@ -38,6 +39,7 @@
 	  </div>
 	</div>
 	
+  <div id="migration_error" class="alert alert-danger" role="alert" style="display:none; white-space:pre-wrap;"></div>
   <a class="btn btn-default btn-lg pull-right" disabled href="<?php echo site_url('login'); ?>" id="login_to_pos" style="display:none;" role="button"><?php echo $is_new ? lang('migrate_login_to_new_pos') : lang('migrate_login_to_upgraded_pos');?> <span id="status_icon" class="glyphicon glyphicon-remove"></span></a>
 	
 </div>
@@ -58,20 +60,27 @@ var all_messages = [];
 $("#upgrade_database").click(function()
 {
 	$(this).hide();
+	$('#migration_error').hide().text('');
+	$('#progessbar').removeClass('progress-bar-danger').addClass('active');
 	set_progress(1,<?php echo json_encode(lang('migrate_starting')); ?>);
 	migrate_one_step();
 });
 
+function migration_failed(message)
+{
+	$('#login_to_pos').hide();
+	$('#progessbar').removeClass('active').addClass('progress-bar-danger');
+	$('#migration_error').text(message).show();
+	$('#upgrade_database').text('Reintentar migración').show();
+}
+
 function migrate_one_step()
 {
-	$.getJSON(SITE_URL+'/migrate/migrate_one_step', function(response)
+	$.getJSON(MIGRATION_STEP_URL, function(response)
 	{
 		if (!response.success)
 		{
-			$("#login_to_pos").hide();
-			$("#progress_container").show();
-			$("#progessbar").removeClass("active").addClass("progress-bar-danger");
-			$("#progress_message").text(response.message || "La migración no se completó.");
+			migration_failed(response.message || 'La migración no se completó.');
 			return;
 		}
 		set_progress(response.percent_complete,response.message);
@@ -87,11 +96,20 @@ function migrate_one_step()
 			
 			for(var k = 0;k< all_messages.length;k++)
 			{
-				$("#all_messages").append('<li class="list-group-item">'+all_messages[k]+'</li>');
+				$('<li class="list-group-item">').text(all_messages[k]).appendTo('#all_messages');
 			}
 			
 			$("#all_messages_container").show();
 		}
+	}).fail(function(xhr, status)
+	{
+		var message = xhr.status ? 'La migración se detuvo: HTTP ' + xhr.status + '.' : 'No se recibió respuesta del servidor. Revisa tu conexión.';
+		if (status === 'parsererror')
+		{
+			message = 'El servidor devolvió una página o un error en lugar del resultado de la migración. Puede ser una redirección al inicio de sesión o un error de PHP.';
+		}
+		message += '\nConsulta el registro de errores de PHP en cPanel y comparte el error antes de volver a intentar.';
+		migration_failed(message);
 	});
 }
 
@@ -102,7 +120,7 @@ function set_progress(percent,message)
 	$('#progress_percent').html(percent);
 	if (message !='')
 	{
-		$("#progress_message").html('('+message+')');
+		$("#progress_message").text('('+message+')');
 	}
 	else
 	{

@@ -83,6 +83,14 @@ class Migrate extends MY_Controller {
 		{
 			$cur_migration_version = $this->migration->get_version();
 			$migrations = $this->migration->find_migrations();
+			$target_version = $this->migration->get_migration_version();
+			$this->output->set_content_type('application/json');
+			if ($target_version > $cur_migration_version && !isset($migrations[$target_version]))
+			{
+				echo json_encode(array('success' => FALSE, 'has_next_step' => FALSE,
+					'percent_complete' => 0, 'message' => 'Falta el archivo de migración '.$target_version.'. Sube los archivos de application/migrations desde main.'));
+				return;
+			}
 			$total_migrations = $this->_get_total_number_of_migrations_to_run();
 			$number_of_migrations_completed = $this->_get_total_number_of_migrations_ran();
 			
@@ -104,8 +112,24 @@ class Migrate extends MY_Controller {
 				$name = basename($migration_to_run, '.php');
 				$version = $this->migration->get_migration_number($name);
 				$message = lang('migrate_'.substr($name,strpos($name,'_')+1));
+				if (!$message) $message = $name;
 				$percent_complete = floor(($number_of_migrations_completed/max(1, $total_migrations))*100);
-				if ($this->migration->version($version) === FALSE)
+				$db_debug = $this->db->db_debug;
+				$this->db->db_debug = FALSE;
+				try
+				{
+					$result = $this->migration->version($version);
+				}
+				catch (Throwable $e)
+				{
+					log_message('error', 'Migration '.$version.' failed: '.$e->getMessage());
+					$this->db->db_debug = $db_debug;
+					echo json_encode(array('success' => FALSE, 'has_next_step' => FALSE,
+						'percent_complete' => $percent_complete, 'message' => 'Falló la migración '.$name.'. Consulta el registro de errores de PHP en cPanel.'));
+					return;
+				}
+				$this->db->db_debug = $db_debug;
+				if ($result === FALSE)
 				{
 					echo json_encode(array('success' => FALSE, 'has_next_step' => FALSE,
 						'percent_complete' => $percent_complete, 'message' => $this->migration->error_string()));
@@ -148,3 +172,4 @@ class Migrate extends MY_Controller {
       }
   }
 }
+
