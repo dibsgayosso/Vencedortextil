@@ -13,12 +13,13 @@ class Owner_dashboard extends CI_Model
     }
     public static function empty_totals()
     {
-        return array('sales_total'=>0,'sales_count'=>0,'receiving_total'=>0,'receiving_count'=>0,'pending_count'=>0,'pending_total'=>0,'expenses_total'=>0,'expenses_count'=>0,'credit_balance'=>0,'credit_customers'=>0,'credit_in_favor'=>0);
+        return array('sales_total'=>0,'sales_count'=>0,'receiving_total'=>0,'receiving_count'=>0,'pending_count'=>0,'pending_total'=>0,'expenses_total'=>0,'expenses_count'=>0,'credit_balance'=>0,'credit_customers'=>0,'credit_in_favor'=>0,'profit_total'=>0,'cash_out_total'=>0,'cash_out_count'=>0);
     }
     public static function rollup($branches)
     {
-        $totals=self::empty_totals(); $payments=array(); $last_sale=NULL;
+        $totals=self::empty_totals(); $payments=array(); $last_sale=NULL; $can_view_profit=TRUE;
         foreach ($branches as $branch) {
+            $can_view_profit=$can_view_profit && !empty($branch['can_view_profit']);
             foreach ($totals as $key=>$value) $totals[$key]+=$branch[$key];
             foreach ($branch['payments'] as $payment) {
                 $label=$payment['label'];
@@ -27,7 +28,7 @@ class Owner_dashboard extends CI_Model
             }
             if ($branch['last_sale']!==NULL && ($last_sale===NULL || $branch['last_sale']>$last_sale)) $last_sale=$branch['last_sale'];
         }
-        return array('totals'=>$totals,'payments'=>array_values($payments),'last_sale'=>$last_sale);
+        return array('totals'=>$totals,'payments'=>array_values($payments),'last_sale'=>$last_sale,'can_view_profit'=>$can_view_profit);
     }
     public function snapshot($person,$payment_loader)
     {
@@ -54,6 +55,24 @@ class Owner_dashboard extends CI_Model
         $result=self::empty_totals();
         $result['pending_requests']=array();
         $result['can_authorize']=FALSE;
+        $result['can_view_profit']=$this->Employee->has_module_action_permission('reports','show_profit',$person,$id);
+        if ($result['can_view_profit']) {
+            // Use the historical profit saved with each sale, including signed returns.
+            // A later change to product costs must not rewrite today's profit.
+            $profit=$this->db->select('COALESCE(SUM(profit),0) AS amount',FALSE)->from('sales')
+                ->where('location_id',$id)->where('deleted',0)->where('suspended',0)->where('store_account_payment',0)
+                ->where('sale_time >=',$day[0])->where('sale_time <',$day[1])->get()->row_array();
+            $result['profit_total']=(float)$profit['amount'];
+        }
+        // The audit stores manual drawer withdrawals as negative amounts. Filter by
+        // the movement date so a shift crossing midnight is not counted twice.
+        $cash_out=$this->db->select('COUNT(*) AS operations, COALESCE(SUM(-'.$this->db->dbprefix('register_log_audit').'.amount),0) AS amount',FALSE)
+            ->from('register_log_audit')->join('register_log','register_log.register_log_id=register_log_audit.register_log_id')
+            ->join('registers','registers.register_id=register_log.register_id')->where('registers.location_id',$id)
+            ->where('register_log.deleted',0)->where('register_log_audit.payment_type','common_cash')
+            ->where('register_log_audit.amount <',0)->where('register_log_audit.date >=',$day[0])->where('register_log_audit.date <',$day[1])
+            ->get()->row_array();
+        $result['cash_out_total']=(float)$cash_out['amount']; $result['cash_out_count']=(int)$cash_out['operations'];
         // A debt payment and a return are not the most recent merchandise sale.
         $last=$this->db->select('UNIX_TIMESTAMP(MAX(sale_time)) AS last_sale',FALSE)->from('sales')->where('location_id',$id)
             ->where('deleted',0)->where('suspended',0)->where('store_account_payment',0)->where('total >=',0)->get()->row_array();
@@ -76,3 +95,4 @@ class Owner_dashboard extends CI_Model
         return $result;
     }
 }
+
