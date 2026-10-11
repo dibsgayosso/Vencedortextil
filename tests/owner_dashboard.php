@@ -1,5 +1,6 @@
 <?php
 define('BASEPATH',__DIR__);class CI_Model {}
+function log_message($level,$message){$GLOBALS['owner_errors'][]=$message;}
 function html_escape($v){return htmlspecialchars((string)$v,ENT_QUOTES,'UTF-8');}function to_currency($n){return '$'.number_format($n,2);}function site_url($p){return '/index.php/'.$p;}
 require dirname(__DIR__).'/application/models/Owner_dashboard.php';
 class OwnerFixture extends Owner_dashboard {
@@ -25,7 +26,9 @@ class OwnerQueryFixture extends Owner_dashboard {
  public function load_branch($id,$day){return $this->branch($id,$day,10);}
 }
 class OwnerQueryDb {
- public $queries=array(); private $query=array();
+ public $queries=array(); public $db_debug=TRUE; public $fail_metric=NULL; private $query=array();
+ function reset_query(){$this->query=array();return $this;}
+ function error(){return array('code'=>1054,'message'=>'Unknown column in fixture');}
  function dbprefix($table){return 'tenant_'.$table;}
  function select($sql,$escape=TRUE){$this->query['select']=$sql;return $this;}
  function from($table){$this->query['table']=$table;return $this;}
@@ -34,6 +37,8 @@ class OwnerQueryDb {
  function group_by($key){return $this;}
  function get(){
   $q=$this->query;$this->queries[]=$q;$this->query=array();
+  if($this->fail_metric==='cash_out' && $q['table']==='register_log_audit')return FALSE;
+  if($this->fail_metric==='profit' && $q['table']==='sales' && strpos($q['select'],'profit')!==FALSE)return FALSE;
   if($q['table']==='sales')$row=strpos($q['select'],'profit')!==FALSE?array('amount'=>-12.5):array('last_sale'=>NULL);
   elseif($q['table']==='register_log_audit')$row=array('amount'=>125,'operations'=>2);
   elseif($q['table']==='customers')$row=array('debt'=>0,'in_favor'=>0,'customers'=>0);
@@ -65,3 +70,17 @@ ob_start();require dirname(__DIR__).'/application/views/owner_panel.php';$hidden
 if(strpos($hidden_html,'Sin permiso</strong>')===FALSE)throw new Exception('Partial branch profit must not be presented as the consolidated profit');
 echo "Profit permissions, signed returns, daily cash withdrawals and SQL scope checks passed\n";
 
+
+$q->Employee->profit=TRUE;
+foreach(array('profit','cash_out') as $failed){
+ $q->db->fail_metric=$failed;
+ $b=$q->load_branch(7,$day);
+ if($b[$failed.'_available']!==FALSE || !$q->db->db_debug || !array_key_exists('last_sale',$b))throw new Exception('Metric failure interrupted the dashboard or debug state');
+ $b['payments']=array();$b['sales_total']=120;$b['sales_count']=1;
+ $b['id']=7;$b['name']='Sucursal';$b['day']='11/10/2026';$b['timezone']='America/Mexico_City';
+ $owner_dashboard=array_merge(Owner_dashboard::rollup(array($b)),array('branches'=>array($b),'receiving_ready'=>FALSE));
+ ob_start();require dirname(__DIR__).'/application/views/owner_panel.php';$html=ob_get_clean();
+ if(strpos($html,'No disponible')===FALSE || strpos($html,'$120.00')===FALSE)throw new Exception('Failed metric must not render as zero or hide the sales panel');
+}
+if(count($GLOBALS['owner_errors'])!==2)throw new Exception('Metric failures were not logged');
+echo "SQL failures preserve dashboard, report unavailable metrics and restore database state\n";
