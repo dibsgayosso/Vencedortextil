@@ -582,6 +582,21 @@ class Receiving extends MY_Model
 			{
 				if (!$item->serialnumber)
 				{
+					if ($mode == 'receive' && $item->quantity > 0 && !$item->quantity_unit_quantity)
+					{
+						$updated_receiving_cost = (float)$item_unit_price_before_tax * (1 - ((float)$item->discount / 100));
+						if ($updated_receiving_cost >= 0)
+						{
+							if ($item->variation_id)
+							{
+								$this->Item_variations->save(array('cost_price' => $updated_receiving_cost), $item->variation_id);
+							}
+							else
+							{
+								$this->Item->save(array('cost_price' => $updated_receiving_cost), $item->item_id);
+							}
+						}
+					}
 					if ($this->config->item('calculate_average_cost_price_from_receivings'))
 					{
 						if ($item->quantity_unit_quantity !== NULL)

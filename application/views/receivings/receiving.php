@@ -304,7 +304,20 @@ $has_cost_price_permission = $this->Employee->has_module_action_permission('item
 												<dd><?php echo to_quantity($cur_quantity); ?></dd>
 
 												<?php if ($this->Employee->has_module_action_permission('sales', 'edit_sale_price', $this->Employee->get_logged_in_employee_info()->person_id)) {	?>
-													<dt><?php echo lang('common_unit_price'); ?></dt>
+													<?php if ($mode == 'receive' && isset($item->item_id) && $item->item_id && $has_cost_price_permission) {
+										$receiving_unit_factor = ($item->quantity_unit_quantity !== NULL && (float)$item->quantity_unit_quantity > 0) ? (float)$item->quantity_unit_quantity : 1;
+										$receiving_net_cost = ((float)$item->unit_price * (1 - (float)$item->discount / 100)) / $receiving_unit_factor;
+										$receiving_selling_price = (float)$item->selling_price / $receiving_unit_factor;
+										$receiving_margin = $receiving_selling_price > 0 ? (($receiving_selling_price - $receiving_net_cost) / $receiving_selling_price) * 100 : 0;
+									?>
+										<dt>Costo nuevo / unidad</dt><dd><?php echo to_currency($receiving_net_cost); ?></dd>
+										<dt>Margen estimado</dt><dd><?php echo number_format($receiving_margin, 2); ?>%</dd>
+										<?php if ($receiving_net_cost >= $receiving_selling_price && $receiving_net_cost > 0) { ?>
+											<dt class="text-danger">Alerta de precio</dt>
+											<dd class="text-danger"><strong>El costo de entrada iguala o supera el precio de venta. Modifica el precio antes de completar el recibo.</strong></dd>
+										<?php } ?>
+									<?php } ?>
+									<dt><?php echo lang('common_unit_price'); ?></dt>
 													<dd>
 														<a href="#" id="selling_price_<?php echo $line; ?>" class="xeditable" data-type="text" data-pk="1" data-name="selling_price" data-value="<?php echo to_currency_no_money($item->selling_price, 10); ?>" data-url="<?php echo site_url('receivings/edit_item/' . $line); ?>" data-title="<?php echo H(lang('common_unit_price')); ?>"><?php echo to_currency_no_money($item->selling_price, 10) ?></a>
 													</dd>
