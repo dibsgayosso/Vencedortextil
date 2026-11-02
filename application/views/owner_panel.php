@@ -21,7 +21,7 @@
 @media(max-width:1100px){.ow-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}@media(max-width:800px){.ow-overview,.ow-branches{grid-template-columns:1fr}.ow-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:430px){.ow-box,.ow-branch{padding:16px}.ow-kpi strong{font-size:21px}.ow-payment-chart{gap:12px}.ow-payment-chart svg{width:80px;height:80px}.ow-metrics{grid-template-columns:1fr}.ow-metric{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}.ow-metric strong{font-size:20px}.ow-hero{padding:20px}}
 </style>
 <section class="ow-dashboard" aria-label="Panel del propietario">
- <p><a href="<?php echo site_url('home/multi_owner_panel'); ?>" target="_blank" rel="noopener" class="btn btn-primary">Panel General · Dos bases de datos</a></p>
+ <?php if (!empty($owner_dashboard['remote_errors'])) { foreach ($owner_dashboard['remote_errors'] as $remote_error) { ?><div class="alert alert-warning"><?php echo html_escape($remote_error); ?></div><?php } } ?>
  <div class="ow-hero"><div><span class="ow-eyebrow">Tu negocio, de un vistazo</span><h2>Panel del propietario</h2><p><?php echo count($branches); ?> sucursal(es) autorizadas · Última venta: <?php echo $elapsed($owner_dashboard['last_sale']); ?></p></div><span class="ow-live" id="owner-dashboard-refresh" role="status" aria-live="polite">Actualización cada 30 s</span></div>
  <?php if (!$branches) { ?><p class="ow-box">No hay sucursales disponibles con permiso para este panel.</p><?php } else { ?>
  <div class="ow-kpis">
@@ -39,7 +39,7 @@
  <div class="ow-branches">
  <?php foreach ($branches as $branch) { ?>
   <article class="ow-branch">
-   <div class="ow-branch-head"><h3><?php echo html_escape($branch['name']); ?></h3><span class="ow-status <?php echo $branch['pending_count'] ? 'pending' : ''; ?>"><?php echo !$owner_dashboard['receiving_ready'] ? 'Autorizaciones por activar' : ($branch['pending_count'] ? (int)$branch['pending_count'].' por autorizar' : 'Sin entradas pendientes'); ?></span></div>
+   <div class="ow-branch-head"><h3><?php echo html_escape($branch['name']); ?></h3><span class="ow-status <?php echo $branch['pending_count'] ? 'pending' : ''; ?>"><?php echo !empty($branch['remote']) ? 'Base externa · Solo lectura' : (!$owner_dashboard['receiving_ready'] ? 'Autorizaciones por activar' : ($branch['pending_count'] ? (int)$branch['pending_count'].' por autorizar' : 'Sin entradas pendientes')); ?></span></div>
    <p class="ow-date"><?php echo html_escape($branch['day'].' · '.$branch['timezone']); ?></p>
    <div class="ow-sales"><div>Ventas de hoy<strong><?php echo to_currency($branch['sales_total']); ?></strong><small><?php echo (int)$branch['sales_count']; ?> operaciones</small></div><div>◷ Última venta<br><b><?php echo $elapsed($branch['last_sale']); ?></b></div></div>
    <div class="ow-metrics">
