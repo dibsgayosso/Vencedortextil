@@ -1,4 +1,9 @@
 <?php defined('BASEPATH') OR exit('No direct script access allowed'); ?>
+<link rel="apple-touch-icon" sizes="180x180" href="<?php echo base_url('assets/owner-money-icon.png'); ?>">
+<link rel="icon" type="image/png" href="<?php echo base_url('assets/owner-money-icon.png'); ?>">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Panel General">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <section style="padding:24px;font-family:Arial,sans-serif;color:#172554">
 <h2>Panel General · Multibase</h2>
 <p>Resumen de hoy de las bases de datos configuradas. Las conexiones son de solo lectura.</p>
