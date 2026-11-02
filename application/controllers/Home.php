@@ -117,9 +117,18 @@ class Home extends Secure_area
         $debug=$this->db->db_debug;
         $this->db->db_debug=FALSE;
         try {
-            return $this->Owner_dashboard->snapshot($this->session->userdata('person_id'),function($location) {
+            $dashboard=$this->Owner_dashboard->snapshot($this->session->userdata('person_id'),function($location) {
                 return $this->get_today_payment_breakdown($location,TRUE);
             });
+            $this->load->model('Remote_owner_branches');
+            $remote=$this->Remote_owner_branches->snapshot();
+            $dashboard['remote_errors']=$remote['errors'];
+            if ($remote['branches']) {
+                $dashboard['branches']=array_merge($dashboard['branches'],$remote['branches']);
+                $rollup=Owner_dashboard::rollup($dashboard['branches']);
+                $dashboard=array_merge($dashboard,$rollup);
+            }
+            return $dashboard;
         } catch (Throwable $error) {
             log_message('error','Owner dashboard failed: '.$error->getMessage());
             return array('error'=>TRUE);
