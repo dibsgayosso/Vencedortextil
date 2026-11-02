@@ -133,6 +133,18 @@ class Home extends Secure_area
         $this->load->view('owner_panel',array('owner_dashboard'=>$this->owner_data()));
     }
 
+    public function multi_owner_panel()
+    {
+        $this->load->model('Owner_dashboard');
+        if (!$this->Owner_dashboard->allowed_locations($this->session->userdata('person_id'))) {
+            show_error('Sin permiso del panel de propietario',403);
+            return;
+        }
+        $this->load->model('Multi_owner_dashboard');
+        $this->output->set_header('Cache-Control: no-store');
+        $this->load->view('multi_owner_panel',array('multi'=>$this->Multi_owner_dashboard->snapshot()));
+    }
+
     private function supervisor_data()
     {
         $this->load->model('Supervisor_dashboard');
