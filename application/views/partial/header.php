@@ -12,14 +12,12 @@
 	 	 $company = ($company = $this->Location->get_info_for_key('company')) ? $company : $this->config->item('company');
 		 echo !is_on_demo_host() ?  $company.' -- '.lang('common_powered_by').' '.$this->config->item('branding')['name'] : 'Demo - '.$this->config->item('branding')['name'].' | Easy to use Online POS Software' ?></title>
 	<link rel="icon" href="<?php echo base_url();?>favicon_<?php echo $this->config->item('branding_code');?>.ico" type="image/x-icon"/>	
-	<?php if ($this->uri->segment(1) === 'home' && (!$this->uri->segment(2) || $this->uri->segment(2) === 'index')) { ?>
-	<link rel="apple-touch-icon" sizes="180x180" href="<?php echo base_url('assets/owner-money-icon.png'); ?>?v=2" />
-	<link rel="icon" type="image/png" sizes="180x180" href="<?php echo base_url('assets/owner-money-icon.png'); ?>?v=2" />
+	<link rel="apple-touch-icon" sizes="180x180" href="<?php echo base_url('assets/owner-money-icon.png'); ?>?v=3" />
+	<link rel="shortcut icon" type="image/png" href="<?php echo base_url('assets/owner-money-icon.png'); ?>?v=3" />
 	<meta name="apple-mobile-web-app-capable" content="yes" />
 	<meta name="apple-mobile-web-app-status-bar-style" content="default" />
 	<meta name="apple-mobile-web-app-title" content="Panel General" />
 	<meta name="theme-color" content="#0e3752" />
-	<?php } ?>
 	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0"/> <!--320-->
 	<base href="<?php echo base_url();?>" />
 	
