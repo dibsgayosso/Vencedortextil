@@ -12,8 +12,8 @@
 	 	 $company = ($company = $this->Location->get_info_for_key('company')) ? $company : $this->config->item('company');
 		 echo !is_on_demo_host() ?  $company.' -- '.lang('common_powered_by').' '.$this->config->item('branding')['name'] : 'Demo - '.$this->config->item('branding')['name'].' | Easy to use Online POS Software' ?></title>
 	<link rel="icon" href="<?php echo base_url();?>favicon_<?php echo $this->config->item('branding_code');?>.ico" type="image/x-icon"/>	
-	<link rel="apple-touch-icon" sizes="180x180" href="<?php echo base_url('assets/owner-money-icon.png'); ?>?v=3" />
-	<link rel="shortcut icon" type="image/png" href="<?php echo base_url('assets/owner-money-icon.png'); ?>?v=3" />
+	<link rel="apple-touch-icon" sizes="180x180" href="<?php echo base_url('assets/owner-real-icon.png'); ?>?v=4" />
+	<link rel="shortcut icon" type="image/png" href="<?php echo base_url('assets/owner-real-icon.png'); ?>?v=4" />
 	<meta name="apple-mobile-web-app-capable" content="yes" />
 	<meta name="apple-mobile-web-app-status-bar-style" content="default" />
 	<meta name="apple-mobile-web-app-title" content="Panel General" />
