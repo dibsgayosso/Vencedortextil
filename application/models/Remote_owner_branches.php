@@ -41,6 +41,11 @@ class Remote_owner_branches extends CI_Model {
                     foreach ($expenses as $e) {$b['expenses_count']+=(int)$e['operations'];$b['expenses_total']+=(float)$e['amount'];}
                     $c=$this->rows($db,"SELECT COALESCE(SUM(CASE WHEN balance>0 THEN balance ELSE 0 END),0) debt,COALESCE(SUM(CASE WHEN balance<0 THEN -balance ELSE 0 END),0) in_favor,COALESCE(SUM(CASE WHEN balance>0 THEN 1 ELSE 0 END),0) customers FROM ".$p."customers WHERE location_id=? AND deleted=0",array($id));
                     $b['credit_balance']=(float)$c[0]['debt'];$b['credit_in_favor']=(float)$c[0]['in_favor'];$b['credit_customers']=(int)$c[0]['customers'];
+                    $profit=$this->rows($db,"SELECT COALESCE(SUM(profit),0) amount FROM ".$p."sales WHERE location_id=? AND deleted=0 AND suspended=0 AND store_account_payment=0 AND sale_time>=? AND sale_time<?",array($id,$start,$end));
+                    $b['profit_total']=(float)$profit[0]['amount'];
+                    $b['can_view_profit']=TRUE;$b['profit_available']=TRUE;
+                    $cash=$this->rows($db,"SELECT COUNT(*) operations,COALESCE(SUM(-a.amount),0) amount FROM ".$p."register_log_audit a JOIN ".$p."register_log l ON l.register_log_id=a.register_log_id JOIN ".$p."registers r ON r.register_id=l.register_id WHERE r.location_id=? AND l.deleted=0 AND a.payment_type='common_cash' AND a.amount<0 AND a.date>=? AND a.date<?",array($id,$start,$end));
+                    $b['cash_out_total']=(float)$cash[0]['amount'];$b['cash_out_count']=(int)$cash[0]['operations'];$b['cash_out_available']=TRUE;
                     $payments=$this->rows($db,"SELECT sp.payment_type label,COUNT(DISTINCT sp.sale_id) operations,COALESCE(SUM(sp.payment_amount),0) total FROM ".$p."sales_payments sp INNER JOIN ".$p."sales s ON s.sale_id=sp.sale_id WHERE s.location_id=? AND s.deleted=0 AND s.suspended=0 AND s.store_account_payment=0 AND s.sale_time>=? AND s.sale_time<? GROUP BY sp.payment_type",array($id,$start,$end));
                     foreach ($payments as $payment) $b['payments'][]=array('label'=>$payment['label'],'operations'=>(int)$payment['operations'],'total'=>(float)$payment['total']);
                     $branches[]=$b;
