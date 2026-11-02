@@ -628,6 +628,40 @@ class Receiving extends MY_Model
 				}
 			}
 			
+			// A completed supplier receipt replaces the inventory cost with its latest
+			// net purchase cost (not the weighted/historical average). Never apply
+			// this to transfers, suspended receipts, returns or credit payments.
+			if ($suspended == 0 && $mode != 'transfer' && !$is_po
+				&& !$store_account_payment && (float)$item->quantity > 0
+				&& is_numeric($item->unit_price) && (float)$item->unit_price >= 0)
+			{
+				$latest_cost = (float)$item->unit_price;
+				if (isset($item->discount_percent) && is_numeric($item->discount_percent))
+				{
+					$latest_cost *= (1 - (float)$item->discount_percent / 100);
+				}
+				// Units in a pack have their own cost; the main item stores per-unit cost.
+				if ($item->quantity_unit_quantity !== NULL && (float)$item->quantity_unit_quantity > 0)
+				{
+					$unit_data = array('item_id'=>$item->item_id,'cost_price'=>$latest_cost);
+					$this->Item->save_unit_quantity($unit_data,$item->quantity_unit_id);
+					$latest_cost /= (float)$item->quantity_unit_quantity;
+				}
+				$latest_cost = round($latest_cost,10);
+				// Keep the item master cost in sync with the inventory screen.
+				$this->Item->save(array('cost_price'=>$latest_cost),$item->item_id);
+				if (!empty($item->variation_id))
+				{
+					$this->Item_variations->save(array('cost_price'=>$latest_cost),$item->variation_id);
+				}
+				// A location override takes precedence when displaying inventory cost.
+				if ($cur_item_location_info && $cur_item_location_info->cost_price !== NULL)
+				{
+					$this->Item_location->save(array('cost_price'=>$latest_cost),$item->item_id,
+						$cart->location_id ? $cart->location_id : $this->Employee->get_logged_in_employee_current_location_id());
+				}
+			}
+			
 			//Update stock quantity IF not a service item
 			if (!$cur_item_info->is_service)
 			{
