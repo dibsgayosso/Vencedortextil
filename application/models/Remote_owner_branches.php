@@ -48,6 +48,20 @@ class Remote_owner_branches extends CI_Model {
                     $b['cash_out_total']=(float)$cash[0]['amount'];$b['cash_out_count']=(int)$cash[0]['operations'];$b['cash_out_available']=TRUE;
                     $payments=$this->rows($db,"SELECT sp.payment_type label,COUNT(DISTINCT sp.sale_id) operations,COALESCE(SUM(sp.payment_amount),0) total FROM ".$p."sales_payments sp INNER JOIN ".$p."sales s ON s.sale_id=sp.sale_id WHERE s.location_id=? AND s.deleted=0 AND s.suspended=0 AND s.store_account_payment=0 AND s.sale_time>=? AND s.sale_time<? GROUP BY sp.payment_type",array($id,$start,$end));
                     foreach ($payments as $payment) $b['payments'][]=array('label'=>$payment['label'],'operations'=>(int)$payment['operations'],'total'=>(float)$payment['total']);
+                    // Mirror Register::get_last_closed_register_summary on the external connection.
+                    $closed=$this->rows($db,"SELECT l.register_log_id,l.shift_end,l.employee_id_close,r.name register_name FROM ".$p."register_log l JOIN ".$p."registers r ON r.register_id=l.register_id WHERE r.location_id=? AND l.deleted=0 AND l.shift_end IS NOT NULL AND l.shift_end<>'0000-00-00 00:00:00' ORDER BY l.shift_end DESC,l.register_log_id DESC LIMIT 1",array($id));
+                    $b['can_view_difference']=TRUE;
+                    if ($closed) {
+                        $close=$closed[0];
+                        $differences=$this->rows($db,"SELECT COALESCE(SUM(rp.close_amount-rp.open_amount-rp.payment_sales_amount-rp.total_payment_additions+rp.total_payment_subtractions),0) difference FROM ".$p."register_log_payments rp JOIN ".$p."register_log l ON l.register_log_id=rp.register_log_id JOIN ".$p."people po ON po.person_id=l.employee_id_open WHERE rp.register_log_id=?",array($close['register_log_id']));
+                        $close['difference']=(float)$differences[0]['difference'];
+                        $close['employee_name']='';
+                        if (!empty($close['employee_id_close'])) {
+                            $employee=$this->rows($db,"SELECT first_name,last_name FROM ".$p."people WHERE person_id=? LIMIT 1",array($close['employee_id_close']));
+                            if ($employee) $close['employee_name']=trim($employee[0]['first_name'].' '.$employee[0]['last_name']);
+                        }
+                        $b['last_close']=$close;
+                    }
                     $branches[]=$b;
                 }
             } catch (Throwable $e) {
