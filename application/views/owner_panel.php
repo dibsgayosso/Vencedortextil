@@ -57,7 +57,7 @@
     </div><?php } ?>
    </div><?php } ?>
    <div class="ow-cut">Último corte de caja
-    <?php if (!$branch['can_view_difference']) { ?><p>Sin permiso para ver diferencias</p><?php } elseif (!$branch['last_close']) { ?><p>Sin corte cerrado</p><?php } else { $close=$branch['last_close']; $difference=(float)$close['difference']; ?>
+    <?php if (!empty($branch['remote']) && empty($branch['can_view_difference'])) { ?><p>Consulta del corte externo pendiente de actualizar. Revisa Remote_owner_branches.php en el servidor.</p><?php } elseif (!$branch['can_view_difference']) { ?><p>Sin permiso para ver diferencias</p><?php } elseif (!$branch['last_close']) { ?><p>Sin corte cerrado</p><?php } else { $close=$branch['last_close']; $difference=(float)$close['difference']; ?>
      <strong class="<?php echo $difference<-.005 ? 'owner-negative' : 'owner-positive'; ?>"><?php echo to_currency($difference); ?> · <?php echo $difference<-.005 ? 'Faltante' : ($difference>.005 ? 'Sobrante' : 'Sin diferencia'); ?></strong><small><?php echo html_escape($close['shift_end']); ?></small><small><?php echo html_escape($close['employee_name'].' · '.$close['register_name']); ?></small>
     <?php } ?>
    </div>
