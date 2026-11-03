@@ -628,33 +628,28 @@ class Receiving extends MY_Model
 				}
 			}
 			
-			// Latest purchase cost: update inventory fields directly, without
-			// invoking Item::save / Item_variations::save during receipt completion.
-			// Those methods trigger unrelated hooks and can interrupt the ticket.
-			if ($suspended == 0 && $mode != 'transfer' && !$is_po
-				&& !$store_account_payment && (float)$item->quantity > 0
-				&& isset($item->unit_price) && is_numeric($item->unit_price)
-				&& (float)$item->unit_price >= 0)
+			// Synchronize inventory master and location overrides with completed receipt.
+			// Use the actual receipt line fields; do not call Item::save() here.
+			if ($suspended == 0 && $mode != 'transfer' && !$store_account_payment
+				&& (float)$item->quantity > 0 && is_numeric($item->unit_price))
 			{
-				$latest_cost = (float)$item->unit_price;
-				if (isset($item->discount_percent) && is_numeric($item->discount_percent))
-				{
-					$latest_cost *= (1 - (float)$item->discount_percent / 100);
-				}
-				if (isset($item->quantity_unit_quantity) && (float)$item->quantity_unit_quantity > 0)
-				{
-					$latest_cost /= (float)$item->quantity_unit_quantity;
-				}
-				$latest_cost = round($latest_cost,10);
-				$this->db->where('item_id',(int)$item->item_id)->update('items',array('cost_price'=>$latest_cost));
+				$cost = (float)$item->unit_price;
+				$discount = isset($item->discount) ? (float)$item->discount : 0;
+				$cost *= (1 - $discount / 100);
+				$price = isset($item->selling_price) && is_numeric($item->selling_price)
+					? (float)$item->selling_price : NULL;
+				$qty_unit = isset($item->quantity_unit_quantity) ? (float)$item->quantity_unit_quantity : 0;
+				if ($qty_unit > 0) $cost /= $qty_unit;
+				$values = array('cost_price'=>round($cost,10));
+				if ($price !== NULL && $qty_unit <= 0) $values['unit_price']=$price;
+				$this->db->where('item_id',(int)$item->item_id)->update('items',$values);
+				$loc_id = !empty($cart->location_id) ? (int)$cart->location_id : (int)$this->Employee->get_logged_in_employee_current_location_id();
+				$this->db->where('item_id',(int)$item->item_id)->where('location_id',$loc_id)->update('location_items',$values);
 				if (!empty($item->variation_id))
 				{
-					$this->db->where('id',(int)$item->variation_id)->where('item_id',(int)$item->item_id)
-						->update('item_variations',array('cost_price'=>$latest_cost));
+					$this->db->where('id',(int)$item->variation_id)->update('item_variations',$values);
+					$this->db->where('item_variation_id',(int)$item->variation_id)->where('location_id',$loc_id)->update('location_item_variations',$values);
 				}
-				$cost_location_id = !empty($cart->location_id) ? (int)$cart->location_id : (int)$this->Employee->get_logged_in_employee_current_location_id();
-				$this->db->where('item_id',(int)$item->item_id)->where('location_id',$cost_location_id)
-					->update('location_items',array('cost_price'=>$latest_cost));
 			}
 			
 			//Update stock quantity IF not a service item
